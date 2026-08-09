@@ -64,7 +64,9 @@ based on observed behavioral changes.
 
 \- \*\*Day 12:\*\* Final documentation, deployment, and demo preparation.
 
+\## Status
 
+This README was created as part of the GitHub project setup task.
 
 \## Author
 
