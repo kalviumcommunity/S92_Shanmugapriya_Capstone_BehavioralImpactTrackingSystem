@@ -29,8 +29,10 @@ app.get("/", (req, res) => {
 // ================= API INFO =================
 app.get("/api", (req, res) => {
   res.status(200).json({
-    message: "Behavioral Impact Tracking System GET API",
+    message: "Behavioral Impact Tracking System API",
     endpoints: [
+      "POST /api/users",
+      "POST /api/behaviors",
       "GET /api/users",
       "GET /api/users/:id",
       "GET /api/behaviors",
@@ -39,15 +41,30 @@ app.get("/api", (req, res) => {
   });
 });
 
-// ================= USER WRITE =================
+// ================= CREATE USER - POST API =================
 app.post("/api/users", async (req, res) => {
   try {
-    const user = await User.create(req.body);
+    const { name, email, password, role } = req.body;
+
+    // Validation
+    if (!name || !email || !password) {
+      return res.status(400).json({
+        message: "Name, email and password are required"
+      });
+    }
+
+    const user = await User.create({
+      name,
+      email,
+      password,
+      role
+    });
 
     res.status(201).json({
       message: "User created successfully",
       user: user
     });
+
   } catch (error) {
     res.status(400).json({
       message: "Failed to create user",
@@ -62,6 +79,7 @@ app.get("/api/users", async (req, res) => {
     const users = await User.find();
 
     res.status(200).json(users);
+
   } catch (error) {
     res.status(500).json({
       message: "Failed to fetch users",
@@ -82,6 +100,7 @@ app.get("/api/users/:id", async (req, res) => {
     }
 
     res.status(200).json(user);
+
   } catch (error) {
     res.status(500).json({
       message: "Failed to fetch user",
@@ -90,15 +109,30 @@ app.get("/api/users/:id", async (req, res) => {
   }
 });
 
-// ================= BEHAVIOR WRITE =================
+// ================= CREATE BEHAVIOR - POST API =================
 app.post("/api/behaviors", async (req, res) => {
   try {
-    const behavior = await Behavior.create(req.body);
+    const { userId, behaviorType, description, impactScore } = req.body;
+
+    // Validation
+    if (!userId || !behaviorType || !description) {
+      return res.status(400).json({
+        message: "userId, behaviorType and description are required"
+      });
+    }
+
+    const behavior = await Behavior.create({
+      userId,
+      behaviorType,
+      description,
+      impactScore
+    });
 
     res.status(201).json({
       message: "Behavior created successfully",
       behavior: behavior
     });
+
   } catch (error) {
     res.status(400).json({
       message: "Failed to create behavior",
@@ -113,6 +147,7 @@ app.get("/api/behaviors", async (req, res) => {
     const behaviors = await Behavior.find().populate("userId");
 
     res.status(200).json(behaviors);
+
   } catch (error) {
     res.status(500).json({
       message: "Failed to fetch behaviors",
@@ -133,6 +168,7 @@ app.get("/api/behaviors/:id", async (req, res) => {
     }
 
     res.status(200).json(behavior);
+
   } catch (error) {
     res.status(500).json({
       message: "Failed to fetch behavior",
