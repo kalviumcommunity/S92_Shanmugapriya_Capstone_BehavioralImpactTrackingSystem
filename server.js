@@ -15,15 +15,28 @@ app.use(express.json());
 
 const PORT = process.env.PORT || 5000;
 
-// MongoDB Connection
+// ================= MONGODB CONNECTION =================
 mongoose
   .connect(process.env.MONGO_URI)
   .then(() => console.log("MongoDB connected successfully"))
   .catch((error) => console.error("MongoDB connection failed:", error));
 
-// HOME
+// ================= HOME =================
 app.get("/", (req, res) => {
   res.send("Behavioral Impact Tracking System API is running");
+});
+
+// ================= API INFO =================
+app.get("/api", (req, res) => {
+  res.status(200).json({
+    message: "Behavioral Impact Tracking System GET API",
+    endpoints: [
+      "GET /api/users",
+      "GET /api/users/:id",
+      "GET /api/behaviors",
+      "GET /api/behaviors/:id"
+    ]
+  });
 });
 
 // ================= USER WRITE =================
@@ -43,7 +56,7 @@ app.post("/api/users", async (req, res) => {
   }
 });
 
-// ================= USER READ =================
+// ================= GET ALL USERS =================
 app.get("/api/users", async (req, res) => {
   try {
     const users = await User.find();
@@ -52,6 +65,26 @@ app.get("/api/users", async (req, res) => {
   } catch (error) {
     res.status(500).json({
       message: "Failed to fetch users",
+      error: error.message
+    });
+  }
+});
+
+// ================= GET USER BY ID =================
+app.get("/api/users/:id", async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id);
+
+    if (!user) {
+      return res.status(404).json({
+        message: "User not found"
+      });
+    }
+
+    res.status(200).json(user);
+  } catch (error) {
+    res.status(500).json({
+      message: "Failed to fetch user",
       error: error.message
     });
   }
@@ -74,7 +107,7 @@ app.post("/api/behaviors", async (req, res) => {
   }
 });
 
-// ================= BEHAVIOR READ =================
+// ================= GET ALL BEHAVIORS =================
 app.get("/api/behaviors", async (req, res) => {
   try {
     const behaviors = await Behavior.find().populate("userId");
@@ -88,6 +121,27 @@ app.get("/api/behaviors", async (req, res) => {
   }
 });
 
+// ================= GET BEHAVIOR BY ID =================
+app.get("/api/behaviors/:id", async (req, res) => {
+  try {
+    const behavior = await Behavior.findById(req.params.id).populate("userId");
+
+    if (!behavior) {
+      return res.status(404).json({
+        message: "Behavior not found"
+      });
+    }
+
+    res.status(200).json(behavior);
+  } catch (error) {
+    res.status(500).json({
+      message: "Failed to fetch behavior",
+      error: error.message
+    });
+  }
+});
+
+// ================= START SERVER =================
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
