@@ -34,23 +34,24 @@ app.get("/api", (req, res) => {
       "POST /api/users",
       "POST /api/behaviors",
       "GET /api/users",
+      "GET /api/users/:id/behaviors",
       "GET /api/users/:id",
       "GET /api/behaviors",
       "GET /api/behaviors/:id",
       "PUT /api/users/:id",
-      "PUT /api/behaviors/:id"
-    ]
+      "PUT /api/behaviors/:id",
+    ],
   });
 });
 
-// ================= CREATE USER - POST API =================
+// ================= CREATE USER =================
 app.post("/api/users", async (req, res) => {
   try {
     const { name, email, password, role } = req.body;
 
     if (!name || !email || !password) {
       return res.status(400).json({
-        message: "Name, email and password are required"
+        message: "Name, email and password are required",
       });
     }
 
@@ -58,18 +59,17 @@ app.post("/api/users", async (req, res) => {
       name,
       email,
       password,
-      role
+      role,
     });
 
     res.status(201).json({
       message: "User created successfully",
-      user: user
+      user,
     });
-
   } catch (error) {
     res.status(400).json({
       message: "Failed to create user",
-      error: error.message
+      error: error.message,
     });
   }
 });
@@ -80,11 +80,41 @@ app.get("/api/users", async (req, res) => {
     const users = await User.find();
 
     res.status(200).json(users);
-
   } catch (error) {
     res.status(500).json({
       message: "Failed to fetch users",
-      error: error.message
+      error: error.message,
+    });
+  }
+});
+
+// =====================================================
+// GET USER WITH THEIR BEHAVIORS
+// One User → Many Behaviors
+// IMPORTANT: Specific route comes BEFORE /api/users/:id
+// =====================================================
+app.get("/api/users/:id/behaviors", async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id);
+
+    if (!user) {
+      return res.status(404).json({
+        message: "User not found",
+      });
+    }
+
+    const behaviors = await Behavior.find({
+      userId: req.params.id,
+    });
+
+    res.status(200).json({
+      user,
+      behaviors,
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: "Failed to fetch user behaviors",
+      error: error.message,
     });
   }
 });
@@ -96,21 +126,20 @@ app.get("/api/users/:id", async (req, res) => {
 
     if (!user) {
       return res.status(404).json({
-        message: "User not found"
+        message: "User not found",
       });
     }
 
     res.status(200).json(user);
-
   } catch (error) {
     res.status(500).json({
       message: "Failed to fetch user",
-      error: error.message
+      error: error.message,
     });
   }
 });
 
-// ================= UPDATE USER - PUT API =================
+// ================= UPDATE USER =================
 app.put("/api/users/:id", async (req, res) => {
   try {
     const updatedUser = await User.findByIdAndUpdate(
@@ -118,37 +147,44 @@ app.put("/api/users/:id", async (req, res) => {
       req.body,
       {
         new: true,
-        runValidators: true
+        runValidators: true,
       }
     );
 
     if (!updatedUser) {
       return res.status(404).json({
-        message: "User not found"
+        message: "User not found",
       });
     }
 
     res.status(200).json({
       message: "User updated successfully",
-      user: updatedUser
+      user: updatedUser,
     });
-
   } catch (error) {
     res.status(400).json({
       message: "Failed to update user",
-      error: error.message
+      error: error.message,
     });
   }
 });
 
-// ================= CREATE BEHAVIOR - POST API =================
+// ================= CREATE BEHAVIOR =================
 app.post("/api/behaviors", async (req, res) => {
   try {
     const { userId, behaviorType, description, impactScore } = req.body;
 
     if (!userId || !behaviorType || !description) {
       return res.status(400).json({
-        message: "userId, behaviorType and description are required"
+        message: "userId, behaviorType and description are required",
+      });
+    }
+
+    const user = await User.findById(userId);
+
+    if (!user) {
+      return res.status(404).json({
+        message: "User not found. Cannot create behavior.",
       });
     }
 
@@ -156,18 +192,17 @@ app.post("/api/behaviors", async (req, res) => {
       userId,
       behaviorType,
       description,
-      impactScore
+      impactScore,
     });
 
     res.status(201).json({
-      message: "Behavior created successfully",
-      behavior: behavior
+      message: "Behavior created successfully and linked to user",
+      behavior,
     });
-
   } catch (error) {
     res.status(400).json({
       message: "Failed to create behavior",
-      error: error.message
+      error: error.message,
     });
   }
 });
@@ -175,14 +210,16 @@ app.post("/api/behaviors", async (req, res) => {
 // ================= GET ALL BEHAVIORS =================
 app.get("/api/behaviors", async (req, res) => {
   try {
-    const behaviors = await Behavior.find().populate("userId");
+    const behaviors = await Behavior.find().populate(
+      "userId",
+      "name email role"
+    );
 
     res.status(200).json(behaviors);
-
   } catch (error) {
     res.status(500).json({
       message: "Failed to fetch behaviors",
-      error: error.message
+      error: error.message,
     });
   }
 });
@@ -190,25 +227,27 @@ app.get("/api/behaviors", async (req, res) => {
 // ================= GET BEHAVIOR BY ID =================
 app.get("/api/behaviors/:id", async (req, res) => {
   try {
-    const behavior = await Behavior.findById(req.params.id).populate("userId");
+    const behavior = await Behavior.findById(req.params.id).populate(
+      "userId",
+      "name email role"
+    );
 
     if (!behavior) {
       return res.status(404).json({
-        message: "Behavior not found"
+        message: "Behavior not found",
       });
     }
 
     res.status(200).json(behavior);
-
   } catch (error) {
     res.status(500).json({
       message: "Failed to fetch behavior",
-      error: error.message
+      error: error.message,
     });
   }
 });
 
-// ================= UPDATE BEHAVIOR - PUT API =================
+// ================= UPDATE BEHAVIOR =================
 app.put("/api/behaviors/:id", async (req, res) => {
   try {
     const updatedBehavior = await Behavior.findByIdAndUpdate(
@@ -216,25 +255,24 @@ app.put("/api/behaviors/:id", async (req, res) => {
       req.body,
       {
         new: true,
-        runValidators: true
+        runValidators: true,
       }
     );
 
     if (!updatedBehavior) {
       return res.status(404).json({
-        message: "Behavior not found"
+        message: "Behavior not found",
       });
     }
 
     res.status(200).json({
       message: "Behavior updated successfully",
-      behavior: updatedBehavior
+      behavior: updatedBehavior,
     });
-
   } catch (error) {
     res.status(400).json({
       message: "Failed to update behavior",
-      error: error.message
+      error: error.message,
     });
   }
 });
