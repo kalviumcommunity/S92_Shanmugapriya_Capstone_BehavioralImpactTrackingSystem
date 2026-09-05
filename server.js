@@ -36,7 +36,9 @@ app.get("/api", (req, res) => {
       "GET /api/users",
       "GET /api/users/:id",
       "GET /api/behaviors",
-      "GET /api/behaviors/:id"
+      "GET /api/behaviors/:id",
+      "PUT /api/users/:id",
+      "PUT /api/behaviors/:id"
     ]
   });
 });
@@ -46,7 +48,6 @@ app.post("/api/users", async (req, res) => {
   try {
     const { name, email, password, role } = req.body;
 
-    // Validation
     if (!name || !email || !password) {
       return res.status(400).json({
         message: "Name, email and password are required"
@@ -109,12 +110,42 @@ app.get("/api/users/:id", async (req, res) => {
   }
 });
 
+// ================= UPDATE USER - PUT API =================
+app.put("/api/users/:id", async (req, res) => {
+  try {
+    const updatedUser = await User.findByIdAndUpdate(
+      req.params.id,
+      req.body,
+      {
+        new: true,
+        runValidators: true
+      }
+    );
+
+    if (!updatedUser) {
+      return res.status(404).json({
+        message: "User not found"
+      });
+    }
+
+    res.status(200).json({
+      message: "User updated successfully",
+      user: updatedUser
+    });
+
+  } catch (error) {
+    res.status(400).json({
+      message: "Failed to update user",
+      error: error.message
+    });
+  }
+});
+
 // ================= CREATE BEHAVIOR - POST API =================
 app.post("/api/behaviors", async (req, res) => {
   try {
     const { userId, behaviorType, description, impactScore } = req.body;
 
-    // Validation
     if (!userId || !behaviorType || !description) {
       return res.status(400).json({
         message: "userId, behaviorType and description are required"
@@ -172,6 +203,37 @@ app.get("/api/behaviors/:id", async (req, res) => {
   } catch (error) {
     res.status(500).json({
       message: "Failed to fetch behavior",
+      error: error.message
+    });
+  }
+});
+
+// ================= UPDATE BEHAVIOR - PUT API =================
+app.put("/api/behaviors/:id", async (req, res) => {
+  try {
+    const updatedBehavior = await Behavior.findByIdAndUpdate(
+      req.params.id,
+      req.body,
+      {
+        new: true,
+        runValidators: true
+      }
+    );
+
+    if (!updatedBehavior) {
+      return res.status(404).json({
+        message: "Behavior not found"
+      });
+    }
+
+    res.status(200).json({
+      message: "Behavior updated successfully",
+      behavior: updatedBehavior
+    });
+
+  } catch (error) {
+    res.status(400).json({
+      message: "Failed to update behavior",
       error: error.message
     });
   }
