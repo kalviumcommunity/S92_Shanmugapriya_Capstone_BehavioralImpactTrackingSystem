@@ -1,9 +1,12 @@
 const express = require("express");
 const mongoose = require("mongoose");
 const dns = require("dns");
+const fs = require("fs");
+const path = require("path");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const cors = require("cors");
+const multer = require("multer");
 const { OAuth2Client } = require("google-auth-library");
 
 require("dotenv").config();
@@ -15,6 +18,32 @@ const Behavior = require("./models/Behavior");
 const User = require("./models/User");
 
 const app = express();
+const uploadsDirectory = path.join(__dirname, "uploads");
+fs.mkdirSync(uploadsDirectory, { recursive: true });
+
+const allowedFileTypes = new Set([
+  "application/pdf",
+  "image/jpeg",
+  "image/png",
+  "text/plain",
+]);
+
+const upload = multer({
+  storage: multer.diskStorage({
+    destination: uploadsDirectory,
+    filename: (_req, file, callback) => {
+      const extension = path.extname(file.originalname).toLowerCase();
+      callback(null, `${Date.now()}-${Math.random().toString(36).slice(2)}${extension}`);
+    },
+  }),
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (_req, file, callback) => {
+    if (!allowedFileTypes.has(file.mimetype)) {
+      return callback(new Error("Only PDF, PNG, JPG, and TXT files are allowed"));
+    }
+    callback(null, true);
+  },
+});
 
 // ================= MIDDLEWARE =================
 app.use(express.json());
@@ -120,6 +149,7 @@ app.get("/api", (req, res) => {
       "POST /api/behaviors",
       "GET /api/behaviors",
       "GET /api/behaviors/:id",
+      "GET /api/behaviors/:id/attachment",
       "PUT /api/behaviors/:id",
       "DELETE /api/behaviors/:id",
     ],
@@ -425,7 +455,7 @@ app.get(
 
 // ================= CREATE BEHAVIOR =================
 
-app.post("/api/behaviors", requireAuth, async (req, res) => {
+app.post("/api/behaviors", requireAuth, upload.single("attachment"), async (req, res) => {
   try {
     const { behaviorType, description, impactScore } = req.body;
 
@@ -442,6 +472,14 @@ app.post("/api/behaviors", requireAuth, async (req, res) => {
       behaviorType,
       description,
       impactScore,
+      attachment: req.file
+        ? {
+            filename: req.file.filename,
+            originalName: req.file.originalname,
+            mimeType: req.file.mimetype,
+            size: req.file.size,
+          }
+        : undefined,
     });
 
     res.status(201).json({
@@ -449,6 +487,7 @@ app.post("/api/behaviors", requireAuth, async (req, res) => {
       behavior,
     });
   } catch (error) {
+    if (req.file) fs.rmSync(req.file.path, { force: true });
     res.status(400).json({
       message: "Failed to create behavior",
       error: error.message,
@@ -478,6 +517,29 @@ app.get("/api/behaviors", requireAuth, async (req, res) => {
       message: "Failed to fetch behaviors",
       error: error.message,
     });
+  }
+});
+
+// ================= DOWNLOAD ATTACHMENT =================
+
+app.get("/api/behaviors/:id/attachment", requireAuth, async (req, res) => {
+  try {
+    const behavior = await Behavior.findById(req.params.id);
+    if (!behavior) return res.status(404).json({ message: "Behavior not found" });
+
+    if (behavior.userId.toString() !== req.auth.userId && req.auth.role !== "admin") {
+      return res.status(403).json({ message: "You can only access your own attachments" });
+    }
+
+    if (!behavior.attachment?.filename) {
+      return res.status(404).json({ message: "No attachment found" });
+    }
+
+    const filePath = path.join(uploadsDirectory, behavior.attachment.filename);
+    if (!fs.existsSync(filePath)) return res.status(404).json({ message: "Attachment file is missing" });
+    res.download(filePath, behavior.attachment.originalName);
+  } catch (error) {
+    res.status(500).json({ message: "Failed to download attachment", error: error.message });
   }
 });
 
@@ -594,6 +656,10 @@ app.delete(
 
       await behavior.deleteOne();
 
+      if (behavior.attachment?.filename) {
+        fs.rmSync(path.join(uploadsDirectory, behavior.attachment.filename), { force: true });
+      }
+
       res.status(200).json({
         message: "Behavior deleted successfully",
       });
@@ -605,6 +671,16 @@ app.delete(
     }
   }
 );
+
+app.use((error, _req, res, _next) => {
+  if (error instanceof multer.MulterError && error.code === "LIMIT_FILE_SIZE") {
+    return res.status(400).json({ message: "Attachment must be 5 MB or smaller" });
+  }
+  if (error?.message?.includes("Only PDF")) {
+    return res.status(400).json({ message: error.message });
+  }
+  res.status(500).json({ message: "Unexpected server error" });
+});
 
 // ================= START SERVER =================
 
