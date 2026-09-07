@@ -1,6 +1,6 @@
 import React from "react";
 
-function Navbar() {
+function Navbar({ user, onLogout }) {
   return (
     <nav className="navbar">
       <h2 className="navbar-logo">Behavioral Impact Tracker</h2>
@@ -9,6 +9,7 @@ function Navbar() {
         <li>Dashboard</li>
         <li>About</li>
         <li>Contact</li>
+        <li><span className="user-label">@{user.username}</span><button onClick={onLogout}>Log out</button></li>
       </ul>
     </nav>
   );

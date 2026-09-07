@@ -1,78 +1,107 @@
-\# Behavioral Impact Tracking System
+# Behavioral Impact Tracking System
 
+Full-stack capstone application for recording behavior, measuring impact, and reviewing personal activity over time.
 
+## Features
 
-\## Capstone Project
+- Username and password registration and login
+- Password hashing with bcrypt
+- JWT-based authentication for protected API routes
+- MongoDB persistence for users and behavior records
+- Create, view, edit, and delete behavior records
+- Impact score tracking with dashboard statistics
+- Ownership protection so users can only manage their own records
+- Responsive React dashboard with logout and expired-session handling
 
+## Tech Stack
 
+- React and Vite
+- Node.js and Express
+- MongoDB and Mongoose
+- JSON Web Tokens and bcryptjs
 
-\## Project Idea
+## Requirements
 
-The Behavioral Impact Tracking System is an AI/ML-based application designed to monitor,
+- Node.js 18 or newer
+- MongoDB connection string
 
-analyze, and evaluate behavioral patterns over time. The system collects relevant behavioral
+## Setup
 
-data and applies machine learning techniques to identify trends, measure the impact of specific
+Install backend dependencies from the project root:
 
-interventions or programs, and generate meaningful insights through visual dashboards and reports.
+```powershell
+npm install
+```
 
-This project aims to help organizations, educators, or researchers make data-driven decisions
+Install frontend dependencies:
 
-based on observed behavioral changes.
+```powershell
+cd client
+npm install
+cd ..
+```
 
+Create a `.env` file in the project root:
 
+```env
+PORT=5000
+MONGO_URI=your_mongodb_connection_string
+JWT_SECRET=replace_with_a_long_random_secret
+```
 
-\## Tech Stack (planned)
+## Run Locally
 
-\- Python (for data analysis and ML models)
+Open two terminals in the project root.
 
-\- Machine Learning libraries (Scikit-learn / TensorFlow)
+Terminal 1, start the API:
 
-\- Database (MySQL / MongoDB)
+```powershell
+npm run server
+```
 
-\- Frontend framework (React / Streamlit for dashboard)
+Terminal 2, start the React client:
 
-\- Git \& GitHub (version control)
+```powershell
+npm run dev
+```
 
+Open `http://localhost:5173` in a browser. The Vite development server proxies `/api` requests to the Express server on port `5000`.
 
+## Authentication Flow
 
-\## Day-by-Day Plan
+1. Select **Need an account? Create one** and register with a username and password.
+2. Sign in with the same credentials.
+3. Add behavior records and assign an impact score from 0 to 10.
+4. Edit or delete records from the dashboard.
+5. Use **Log out** to clear the local session.
 
+## API Endpoints
 
+- `POST /api/auth/register` - create an account
+- `POST /api/auth/login` - receive a JWT token
+- `GET /api/auth/me` - verify the current token
+- `GET /api/behaviors` - list the signed-in user's records
+- `POST /api/behaviors` - create a record
+- `PUT /api/behaviors/:id` - update a record
+- `DELETE /api/behaviors/:id` - delete a record
 
-\- \*\*Day 1:\*\* Project setup - GitHub repository creation, README setup, and defining project scope.
+## Validation
 
-\- \*\*Day 2:\*\* Requirement gathering and research on existing behavioral tracking systems.
+```powershell
+cd client
+npm run build
+npm run lint
+cd ..
+node --check server.js
+```
 
-\- \*\*Day 3:\*\* Finalize tech stack and design system architecture.
+## Pull Request
 
-\- \*\*Day 4:\*\* Design database schema for storing behavioral data.
+Authentication implementation branch:
 
-\- \*\*Day 5:\*\* Set up backend environment and basic project structure.
+`feature/username-password-authentication`
 
-\- \*\*Day 6:\*\* Implement data collection and preprocessing module.
-
-\- \*\*Day 7:\*\* Build and train the core ML model for behavioral pattern analysis.
-
-\- \*\*Day 8:\*\* Evaluate and fine-tune the ML model for accuracy.
-
-\- \*\*Day 9:\*\* Develop frontend/dashboard for data visualization.
-
-\- \*\*Day 10:\*\* Integrate frontend with backend and ML model.
-
-\- \*\*Day 11:\*\* Testing, bug fixing, and performance optimization.
-
-\- \*\*Day 12:\*\* Final documentation, deployment, and demo preparation.
-
-\## Status
-
-This README was created as part of the GitHub project setup task.
-
-\## Author
+## Author
 
 A. Shanmuga Priya
-
-B.Tech - Artificial Intelligence and Machine Learning
-
-AMET University
-
+B.Tech - Artificial Intelligence and Machine Learning, AMET University

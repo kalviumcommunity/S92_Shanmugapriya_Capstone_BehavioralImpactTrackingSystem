@@ -1,9 +1,9 @@
 import React from "react";
 
-function Home() {
+function Home({ user }) {
   return (
     <div className="home">
-      <h1>Welcome to Behavioral Impact Tracking System</h1>
+      <h1>Welcome back, {user.name || user.username}</h1>
       <p>Track, analyze, and improve behavioral outcomes with ease.</p>
     </div>
   );
