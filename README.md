@@ -79,6 +79,18 @@ npm run dev
 
 Open `http://localhost:5173` in a browser. The Vite development server proxies `/api` requests to the Express server on port `5000`.
 
+## Deploy Backend on Render
+
+The repository includes `render.yaml` for a Node web service. In Render, choose **New > Blueprint**, connect this GitHub repository, and select the `main` branch. Render will use `npm install` to build, `npm start` to run, and `/` as the health check.
+
+Add these values when Render asks for Blueprint secrets:
+
+- `MONGO_URI`: the MongoDB Atlas connection string
+- `JWT_SECRET`: a long random secret, or keep Render's generated value
+- `GOOGLE_CLIENT_ID`: the Google OAuth web client ID if Google login is enabled
+
+After deployment, verify `https://your-service.onrender.com/` returns `Behavioral Impact Tracking System API is running`. Add the Render URL to Google OAuth authorized origins if Google sign-in is used. Render's free service filesystem is ephemeral, so uploaded evidence files should eventually move to object storage such as Cloudinary or S3 for durable production storage.
+
 ## Authentication Flow
 
 1. Select **Need an account? Create one** and register with a username and password.
