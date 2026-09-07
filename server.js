@@ -3,6 +3,7 @@ const mongoose = require("mongoose");
 const dns = require("dns");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
+const cors = require("cors");
 
 dns.setServers(["8.8.8.8", "8.8.4.4"]);
 
@@ -14,8 +15,38 @@ const User = require("./models/User");
 const app = express();
 
 app.use(express.json());
+app.use(cors());
 
 const PORT = process.env.PORT || 5000;
+const JWT_SECRET = process.env.JWT_SECRET || "development-secret-change-me";
+
+const publicUser = (user) => ({
+  id: user._id,
+  username: user.username,
+  name: user.name,
+  email: user.email,
+  role: user.role,
+});
+
+const createToken = (user) => jwt.sign(
+  { userId: user._id, username: user.username, role: user.role },
+  JWT_SECRET,
+  { expiresIn: "1h" }
+);
+
+const requireAuth = (req, res, next) => {
+  const authorization = req.headers.authorization || "";
+  const token = authorization.startsWith("Bearer ") ? authorization.slice(7) : null;
+
+  if (!token) return res.status(401).json({ message: "Authentication required" });
+
+  try {
+    req.auth = jwt.verify(token, JWT_SECRET);
+    next();
+  } catch {
+    return res.status(401).json({ message: "Invalid or expired token" });
+  }
+};
 
 // ================= MONGODB CONNECTION =================
 mongoose
@@ -51,15 +82,11 @@ app.get("/api", (req, res) => {
 // ================= REGISTER =================
 app.post("/api/auth/register", async (req, res) => {
   try {
-    const { name, email, password, role } = req.body;
+    const { username, password, name, email, role } = req.body;
 
-    if (!name || !email || !password) {
-      return res.status(400).json({
-        message: "Name, email and password are required",
-      });
-    }
+    if (!username || !password) return res.status(400).json({ message: "Username and password are required" });
 
-    const existingUser = await User.findOne({ email });
+    const existingUser = await User.findOne({ username: username.trim() });
 
     if (existingUser) {
       return res.status(400).json({
@@ -70,6 +97,7 @@ app.post("/api/auth/register", async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, 10);
 
     const user = await User.create({
+      username: username.trim(),
       name,
       email,
       password: hashedPassword,
@@ -79,10 +107,7 @@ app.post("/api/auth/register", async (req, res) => {
     res.status(201).json({
       message: "User registered successfully",
       user: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
+        ...publicUser(user),
       },
     });
   } catch (error) {
@@ -96,19 +121,15 @@ app.post("/api/auth/register", async (req, res) => {
 // ================= LOGIN =================
 app.post("/api/auth/login", async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { username, password } = req.body;
 
-    if (!email || !password) {
-      return res.status(400).json({
-        message: "Email and password are required",
-      });
-    }
+    if (!username || !password) return res.status(400).json({ message: "Username and password are required" });
 
-    const user = await User.findOne({ email });
+    const user = await User.findOne({ username: username.trim() });
 
     if (!user) {
       return res.status(401).json({
-        message: "Invalid email or password",
+        message: "Invalid username or password",
       });
     }
 
@@ -119,30 +140,17 @@ app.post("/api/auth/login", async (req, res) => {
 
     if (!isPasswordValid) {
       return res.status(401).json({
-        message: "Invalid email or password",
+        message: "Invalid username or password",
       });
     }
 
-    const token = jwt.sign(
-      {
-        userId: user._id,
-        email: user.email,
-        role: user.role,
-      },
-      process.env.JWT_SECRET || "mysecretkey",
-      {
-        expiresIn: "1h",
-      }
-    );
+    const token = createToken(user);
 
     res.status(200).json({
       message: "Login successful",
       token,
       user: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
+        ...publicUser(user),
       },
     });
   } catch (error) {
@@ -154,26 +162,23 @@ app.post("/api/auth/login", async (req, res) => {
 });
 
 // ================= CREATE USER =================
-app.post("/api/users", async (req, res) => {
+app.post("/api/users", requireAuth, async (req, res) => {
   try {
-    const { name, email, password, role } = req.body;
+    const { username, name, email, password, role } = req.body;
 
-    if (!name || !email || !password) {
-      return res.status(400).json({
-        message: "Name, email and password are required",
-      });
-    }
+    if (!username || !password) return res.status(400).json({ message: "Username and password are required" });
 
     const user = await User.create({
+      username: username.trim(),
       name,
       email,
-      password,
+      password: await bcrypt.hash(password, 10),
       role,
     });
 
     res.status(201).json({
       message: "User created successfully",
-      user,
+      user: publicUser(user),
     });
   } catch (error) {
     res.status(400).json({
@@ -184,9 +189,9 @@ app.post("/api/users", async (req, res) => {
 });
 
 // ================= GET ALL USERS =================
-app.get("/api/users", async (req, res) => {
+app.get("/api/users", requireAuth, async (req, res) => {
   try {
-    const users = await User.find();
+    const users = await User.find().select("-password");
 
     res.status(200).json(users);
   } catch (error) {
@@ -198,7 +203,7 @@ app.get("/api/users", async (req, res) => {
 });
 
 // ================= GET USER WITH THEIR BEHAVIORS =================
-app.get("/api/users/:id/behaviors", async (req, res) => {
+app.get("/api/users/:id/behaviors", requireAuth, async (req, res) => {
   try {
     const user = await User.findById(req.params.id);
 
@@ -225,7 +230,7 @@ app.get("/api/users/:id/behaviors", async (req, res) => {
 });
 
 // ================= GET USER BY ID =================
-app.get("/api/users/:id", async (req, res) => {
+app.get("/api/users/:id", requireAuth, async (req, res) => {
   try {
     const user = await User.findById(req.params.id);
 
@@ -245,7 +250,7 @@ app.get("/api/users/:id", async (req, res) => {
 });
 
 // ================= UPDATE USER =================
-app.put("/api/users/:id", async (req, res) => {
+app.put("/api/users/:id", requireAuth, async (req, res) => {
   try {
     const updatedUser = await User.findByIdAndUpdate(
       req.params.id,
@@ -275,7 +280,7 @@ app.put("/api/users/:id", async (req, res) => {
 });
 
 // ================= CREATE BEHAVIOR =================
-app.post("/api/behaviors", async (req, res) => {
+app.post("/api/behaviors", requireAuth, async (req, res) => {
   try {
     const { userId, behaviorType, description, impactScore } = req.body;
 
@@ -313,7 +318,7 @@ app.post("/api/behaviors", async (req, res) => {
 });
 
 // ================= GET ALL BEHAVIORS =================
-app.get("/api/behaviors", async (req, res) => {
+app.get("/api/behaviors", requireAuth, async (req, res) => {
   try {
     const behaviors = await Behavior.find().populate(
       "userId",
@@ -330,7 +335,7 @@ app.get("/api/behaviors", async (req, res) => {
 });
 
 // ================= GET BEHAVIOR BY ID =================
-app.get("/api/behaviors/:id", async (req, res) => {
+app.get("/api/behaviors/:id", requireAuth, async (req, res) => {
   try {
     const behavior = await Behavior.findById(req.params.id).populate(
       "userId",
@@ -353,7 +358,7 @@ app.get("/api/behaviors/:id", async (req, res) => {
 });
 
 // ================= UPDATE BEHAVIOR =================
-app.put("/api/behaviors/:id", async (req, res) => {
+app.put("/api/behaviors/:id", requireAuth, async (req, res) => {
   try {
     const updatedBehavior = await Behavior.findByIdAndUpdate(
       req.params.id,
@@ -385,4 +390,10 @@ app.put("/api/behaviors/:id", async (req, res) => {
 // ================= START SERVER =================
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
+});
+
+app.get("/api/auth/me", requireAuth, async (req, res) => {
+  const user = await User.findById(req.auth.userId);
+  if (!user) return res.status(404).json({ message: "User not found" });
+  res.json({ user: publicUser(user) });
 });
