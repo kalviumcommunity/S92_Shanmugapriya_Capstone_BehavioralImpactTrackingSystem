@@ -1,0 +1,32 @@
+meta {
+  name: Create Behavior
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/api/behaviors
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "behaviorType": "Daily exercise",
+    "description": "Completed a 30 minute walk",
+    "impactScore": 8
+  }
+}
+
+script:post-response {
+  const data = res.getBody();
+  if (data.behavior?._id) bru.setEnvVar("behaviorId", data.behavior._id);
+}

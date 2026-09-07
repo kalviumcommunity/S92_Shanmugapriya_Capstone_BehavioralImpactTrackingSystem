@@ -14,6 +14,7 @@ Full-stack capstone application for recording behavior, measuring impact, and re
 - Ownership protection so users can only manage their own records
 - Responsive React dashboard with logout and expired-session handling
 - Evidence file uploads for behavior records with authenticated downloads
+- Bruno API collection covering all public and protected endpoints
 
 ## Tech Stack
 
@@ -110,6 +111,10 @@ npm run lint
 cd ..
 node --check server.js
 ```
+
+## Bruno API Collection
+
+The `bruno/` folder is a runnable Bruno collection. Import that folder into Bruno and select the `local` environment. Run `Auth / Login` first so the collection stores the JWT token automatically, then run the behavior and attachment requests. The collection includes health, API info, password auth, Google auth, user management, behavior CRUD, and file upload/download requests.
 
 ## Pull Request
 

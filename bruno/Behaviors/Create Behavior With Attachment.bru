@@ -1,0 +1,27 @@
+meta {
+  name: Create Behavior With Attachment
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/api/behaviors
+  body: multipart-form
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+body:multipart-form {
+  behaviorType: Evidence upload
+  description: Behavior record with supporting evidence
+  impactScore: 9
+  attachment: @file(../sample-evidence.txt)
+}
+
+script:post-response {
+  const data = res.getBody();
+  if (data.behavior?._id) bru.setEnvVar("behaviorId", data.behavior._id);
+}

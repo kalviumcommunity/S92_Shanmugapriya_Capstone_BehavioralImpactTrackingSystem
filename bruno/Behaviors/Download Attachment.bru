@@ -1,0 +1,15 @@
+meta {
+  name: Download Attachment
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{baseUrl}}/api/behaviors/{{behaviorId}}/attachment
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
