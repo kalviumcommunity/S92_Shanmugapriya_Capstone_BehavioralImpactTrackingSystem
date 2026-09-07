@@ -4,6 +4,7 @@ const dns = require("dns");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const cors = require("cors");
+const { OAuth2Client } = require("google-auth-library");
 
 require("dotenv").config();
 
@@ -21,6 +22,8 @@ app.use(cors());
 
 const PORT = process.env.PORT || 5000;
 const JWT_SECRET = process.env.JWT_SECRET;
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
+const googleClient = GOOGLE_CLIENT_ID ? new OAuth2Client(GOOGLE_CLIENT_ID) : null;
 
 // ================= JWT CONFIG CHECK =================
 if (!JWT_SECRET) {
@@ -195,10 +198,9 @@ app.post("/api/auth/login", async (req, res) => {
     }
 
     // Compare entered password with hashed password
-    const isPasswordValid = await bcrypt.compare(
-      password,
-      user.password
-    );
+    const isPasswordValid = user.password
+      ? await bcrypt.compare(password, user.password)
+      : false;
 
     if (!isPasswordValid) {
       return res.status(401).json({
@@ -608,4 +610,55 @@ app.delete(
 
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
+});
+
+// ================= GOOGLE SIGN-IN =================
+
+app.post("/api/auth/google", async (req, res) => {
+  try {
+    if (!googleClient) {
+      return res.status(503).json({ message: "Google authentication is not configured" });
+    }
+
+    const { credential } = req.body;
+    if (!credential) return res.status(400).json({ message: "Google credential is required" });
+
+    const ticket = await googleClient.verifyIdToken({
+      idToken: credential,
+      audience: GOOGLE_CLIENT_ID,
+    });
+    const payload = ticket.getPayload();
+
+    if (!payload?.sub || !payload.email || !payload.email_verified) {
+      return res.status(401).json({ message: "Google account could not be verified" });
+    }
+
+    let user = await User.findOne({ googleId: payload.sub });
+    if (!user) user = await User.findOne({ email: payload.email.toLowerCase() });
+
+    if (user) {
+      user.googleId = payload.sub;
+      user.authProvider = "google";
+      user.name = user.name || payload.name;
+      await user.save();
+    } else {
+      const baseUsername = (payload.email.split("@")[0].replace(/[^a-zA-Z0-9_]/g, "") || "googleuser").slice(0, 20);
+      user = await User.create({
+        username: `${baseUsername}_${payload.sub.slice(-6)}`,
+        name: payload.name || baseUsername,
+        email: payload.email.toLowerCase(),
+        googleId: payload.sub,
+        authProvider: "google",
+        role: "user",
+      });
+    }
+
+    res.status(200).json({
+      message: "Google login successful",
+      token: createToken(user),
+      user: publicUser(user),
+    });
+  } catch (error) {
+    res.status(401).json({ message: "Google authentication failed", error: error.message });
+  }
 });
