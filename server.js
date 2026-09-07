@@ -5,21 +5,32 @@ const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const cors = require("cors");
 
-dns.setServers(["8.8.8.8", "8.8.4.4"]);
-
 require("dotenv").config();
+
+// Use Google DNS for MongoDB Atlas SRV lookup
+dns.setServers(["8.8.8.8", "8.8.4.4"]);
 
 const Behavior = require("./models/Behavior");
 const User = require("./models/User");
 
 const app = express();
 
+// ================= MIDDLEWARE =================
 app.use(express.json());
 app.use(cors());
 
 const PORT = process.env.PORT || 5000;
-const JWT_SECRET = process.env.JWT_SECRET || "development-secret-change-me";
+const JWT_SECRET = process.env.JWT_SECRET;
 
+// ================= JWT CONFIG CHECK =================
+if (!JWT_SECRET) {
+  console.error("JWT_SECRET is missing in .env file");
+  process.exit(1);
+}
+
+// ================= HELPER FUNCTIONS =================
+
+// Remove password before sending user details
 const publicUser = (user) => ({
   id: user._id,
   username: user.username,
@@ -28,65 +39,109 @@ const publicUser = (user) => ({
   role: user.role,
 });
 
-const createToken = (user) => jwt.sign(
-  { userId: user._id, username: user.username, role: user.role },
-  JWT_SECRET,
-  { expiresIn: "1h" }
-);
+// Create JWT token
+const createToken = (user) => {
+  return jwt.sign(
+    {
+      userId: user._id.toString(),
+      username: user.username,
+      role: user.role,
+    },
+    JWT_SECRET,
+    {
+      expiresIn: "1h",
+    }
+  );
+};
+
+// ================= JWT AUTHORIZATION MIDDLEWARE =================
 
 const requireAuth = (req, res, next) => {
   const authorization = req.headers.authorization || "";
-  const token = authorization.startsWith("Bearer ") ? authorization.slice(7) : null;
 
-  if (!token) return res.status(401).json({ message: "Authentication required" });
+  // Check Bearer token
+  if (!authorization.startsWith("Bearer ")) {
+    return res.status(401).json({
+      message: "Authentication required. Please provide a Bearer token.",
+    });
+  }
+
+  const token = authorization.slice(7);
 
   try {
-    req.auth = jwt.verify(token, JWT_SECRET);
+    // Verify JWT token
+    const decoded = jwt.verify(token, JWT_SECRET);
+
+    // Store authenticated user information
+    req.auth = decoded;
+
     next();
-  } catch {
-    return res.status(401).json({ message: "Invalid or expired token" });
+  } catch (error) {
+    return res.status(401).json({
+      message: "Invalid or expired token",
+    });
   }
 };
 
 // ================= MONGODB CONNECTION =================
+
 mongoose
   .connect(process.env.MONGO_URI)
-  .then(() => console.log("MongoDB connected successfully"))
-  .catch((error) => console.error("MongoDB connection failed:", error));
+  .then(() => {
+    console.log("MongoDB connected successfully");
+  })
+  .catch((error) => {
+    console.error("MongoDB connection failed:", error.message);
+  });
 
-// ================= HOME =================
+// ================= HOME ROUTE =================
+
 app.get("/", (req, res) => {
   res.send("Behavioral Impact Tracking System API is running");
 });
 
-// ================= API INFO =================
+// ================= API INFORMATION =================
+
 app.get("/api", (req, res) => {
   res.status(200).json({
     message: "Behavioral Impact Tracking System API",
     endpoints: [
       "POST /api/auth/register",
       "POST /api/auth/login",
+      "GET /api/auth/me",
       "POST /api/users",
-      "POST /api/behaviors",
       "GET /api/users",
-      "GET /api/users/:id/behaviors",
       "GET /api/users/:id",
+      "PUT /api/users/:id",
+      "GET /api/users/:id/behaviors",
+      "POST /api/behaviors",
       "GET /api/behaviors",
       "GET /api/behaviors/:id",
-      "PUT /api/users/:id",
       "PUT /api/behaviors/:id",
+      "DELETE /api/behaviors/:id",
     ],
   });
 });
 
+// =====================================================
+//                    AUTH ROUTES
+// =====================================================
+
 // ================= REGISTER =================
+
 app.post("/api/auth/register", async (req, res) => {
   try {
     const { username, password, name, email, role } = req.body;
 
-    if (!username || !password) return res.status(400).json({ message: "Username and password are required" });
+    if (!username || !password) {
+      return res.status(400).json({
+        message: "Username and password are required",
+      });
+    }
 
-    const existingUser = await User.findOne({ username: username.trim() });
+    const existingUser = await User.findOne({
+      username: username.trim(),
+    });
 
     if (existingUser) {
       return res.status(400).json({
@@ -94,21 +149,20 @@ app.post("/api/auth/register", async (req, res) => {
       });
     }
 
+    // Hash password before storing
     const hashedPassword = await bcrypt.hash(password, 10);
 
     const user = await User.create({
       username: username.trim(),
+      password: hashedPassword,
       name,
       email,
-      password: hashedPassword,
-      role,
+      role: role || "user",
     });
 
     res.status(201).json({
       message: "User registered successfully",
-      user: {
-        ...publicUser(user),
-      },
+      user: publicUser(user),
     });
   } catch (error) {
     res.status(500).json({
@@ -119,13 +173,20 @@ app.post("/api/auth/register", async (req, res) => {
 });
 
 // ================= LOGIN =================
+
 app.post("/api/auth/login", async (req, res) => {
   try {
     const { username, password } = req.body;
 
-    if (!username || !password) return res.status(400).json({ message: "Username and password are required" });
+    if (!username || !password) {
+      return res.status(400).json({
+        message: "Username and password are required",
+      });
+    }
 
-    const user = await User.findOne({ username: username.trim() });
+    const user = await User.findOne({
+      username: username.trim(),
+    });
 
     if (!user) {
       return res.status(401).json({
@@ -133,6 +194,7 @@ app.post("/api/auth/login", async (req, res) => {
       });
     }
 
+    // Compare entered password with hashed password
     const isPasswordValid = await bcrypt.compare(
       password,
       user.password
@@ -144,14 +206,13 @@ app.post("/api/auth/login", async (req, res) => {
       });
     }
 
+    // Create JWT token
     const token = createToken(user);
 
     res.status(200).json({
       message: "Login successful",
       token,
-      user: {
-        ...publicUser(user),
-      },
+      user: publicUser(user),
     });
   } catch (error) {
     res.status(500).json({
@@ -161,19 +222,63 @@ app.post("/api/auth/login", async (req, res) => {
   }
 });
 
+// ================= CURRENT LOGGED-IN USER =================
+
+app.get("/api/auth/me", requireAuth, async (req, res) => {
+  try {
+    const user = await User.findById(req.auth.userId).select("-password");
+
+    if (!user) {
+      return res.status(404).json({
+        message: "User not found",
+      });
+    }
+
+    res.status(200).json({
+      user: publicUser(user),
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: "Failed to fetch user",
+      error: error.message,
+    });
+  }
+});
+
+// =====================================================
+//                    USER ROUTES
+// =====================================================
+
 // ================= CREATE USER =================
+
 app.post("/api/users", requireAuth, async (req, res) => {
   try {
     const { username, name, email, password, role } = req.body;
 
-    if (!username || !password) return res.status(400).json({ message: "Username and password are required" });
+    if (!username || !password) {
+      return res.status(400).json({
+        message: "Username and password are required",
+      });
+    }
+
+    const existingUser = await User.findOne({
+      username: username.trim(),
+    });
+
+    if (existingUser) {
+      return res.status(400).json({
+        message: "Username already exists",
+      });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
 
     const user = await User.create({
       username: username.trim(),
       name,
       email,
-      password: await bcrypt.hash(password, 10),
-      role,
+      password: hashedPassword,
+      role: role || "user",
     });
 
     res.status(201).json({
@@ -189,6 +294,7 @@ app.post("/api/users", requireAuth, async (req, res) => {
 });
 
 // ================= GET ALL USERS =================
+
 app.get("/api/users", requireAuth, async (req, res) => {
   try {
     const users = await User.find().select("-password");
@@ -202,41 +308,11 @@ app.get("/api/users", requireAuth, async (req, res) => {
   }
 });
 
-// ================= GET USER WITH THEIR BEHAVIORS =================
-app.get("/api/users/:id/behaviors", requireAuth, async (req, res) => {
-  try {
-    if (req.auth.userId !== req.params.id && req.auth.role !== "admin") {
-      return res.status(403).json({ message: "You can only view your own behaviors" });
-    }
-
-    const user = await User.findById(req.params.id);
-
-    if (!user) {
-      return res.status(404).json({
-        message: "User not found",
-      });
-    }
-
-    const behaviors = await Behavior.find({
-      userId: req.params.id,
-    });
-
-    res.status(200).json({
-      user,
-      behaviors,
-    });
-  } catch (error) {
-    res.status(500).json({
-      message: "Failed to fetch user behaviors",
-      error: error.message,
-    });
-  }
-});
-
 // ================= GET USER BY ID =================
+
 app.get("/api/users/:id", requireAuth, async (req, res) => {
   try {
-    const user = await User.findById(req.params.id);
+    const user = await User.findById(req.params.id).select("-password");
 
     if (!user) {
       return res.status(404).json({
@@ -254,15 +330,25 @@ app.get("/api/users/:id", requireAuth, async (req, res) => {
 });
 
 // ================= UPDATE USER =================
+
 app.put("/api/users/:id", requireAuth, async (req, res) => {
   try {
-    if (req.auth.userId !== req.params.id && req.auth.role !== "admin") {
-      return res.status(403).json({ message: "You can only update your own profile" });
+    // User can update only their own profile
+    if (
+      req.auth.userId !== req.params.id &&
+      req.auth.role !== "admin"
+    ) {
+      return res.status(403).json({
+        message: "You can only update your own profile",
+      });
     }
 
     const updatedUser = await User.findByIdAndUpdate(
       req.params.id,
-      { name: req.body.name, email: req.body.email },
+      {
+        name: req.body.name,
+        email: req.body.email,
+      },
       {
         new: true,
         runValidators: true,
@@ -287,11 +373,59 @@ app.put("/api/users/:id", requireAuth, async (req, res) => {
   }
 });
 
+// ================= GET USER BEHAVIORS =================
+
+app.get(
+  "/api/users/:id/behaviors",
+  requireAuth,
+  async (req, res) => {
+    try {
+      // Normal user can view only their own behaviors
+      if (
+        req.auth.userId !== req.params.id &&
+        req.auth.role !== "admin"
+      ) {
+        return res.status(403).json({
+          message: "You can only view your own behaviors",
+        });
+      }
+
+      const user = await User.findById(req.params.id).select(
+        "-password"
+      );
+
+      if (!user) {
+        return res.status(404).json({
+          message: "User not found",
+        });
+      }
+
+      const behaviors = await Behavior.find({
+        userId: req.params.id,
+      });
+
+      res.status(200).json({
+        user: publicUser(user),
+        behaviors,
+      });
+    } catch (error) {
+      res.status(500).json({
+        message: "Failed to fetch user behaviors",
+        error: error.message,
+      });
+    }
+  }
+);
+
+// =====================================================
+//                  BEHAVIOR ROUTES
+// =====================================================
+
 // ================= CREATE BEHAVIOR =================
+
 app.post("/api/behaviors", requireAuth, async (req, res) => {
   try {
     const { behaviorType, description, impactScore } = req.body;
-    const userId = req.auth.userId;
 
     if (!behaviorType || !description) {
       return res.status(400).json({
@@ -299,13 +433,7 @@ app.post("/api/behaviors", requireAuth, async (req, res) => {
       });
     }
 
-    const user = await User.findById(userId);
-
-    if (!user) {
-      return res.status(404).json({
-        message: "User not found. Cannot create behavior.",
-      });
-    }
+    const userId = req.auth.userId;
 
     const behavior = await Behavior.create({
       userId,
@@ -315,7 +443,7 @@ app.post("/api/behaviors", requireAuth, async (req, res) => {
     });
 
     res.status(201).json({
-      message: "Behavior created successfully and linked to user",
+      message: "Behavior created successfully",
       behavior,
     });
   } catch (error) {
@@ -327,12 +455,19 @@ app.post("/api/behaviors", requireAuth, async (req, res) => {
 });
 
 // ================= GET ALL BEHAVIORS =================
+
 app.get("/api/behaviors", requireAuth, async (req, res) => {
   try {
-    const filter = req.auth.role === "admin" ? {} : { userId: req.auth.userId };
+    // Admin can see all behaviors
+    // Normal user can see only their behaviors
+    const filter =
+      req.auth.role === "admin"
+        ? {}
+        : { userId: req.auth.userId };
+
     const behaviors = await Behavior.find(filter).populate(
       "userId",
-      "name email role"
+      "username name email role"
     );
 
     res.status(200).json(behaviors);
@@ -345,11 +480,14 @@ app.get("/api/behaviors", requireAuth, async (req, res) => {
 });
 
 // ================= GET BEHAVIOR BY ID =================
+
 app.get("/api/behaviors/:id", requireAuth, async (req, res) => {
   try {
-    const behavior = await Behavior.findById(req.params.id).populate(
+    const behavior = await Behavior.findById(
+      req.params.id
+    ).populate(
       "userId",
-      "name email role"
+      "username name email role"
     );
 
     if (!behavior) {
@@ -358,8 +496,14 @@ app.get("/api/behaviors/:id", requireAuth, async (req, res) => {
       });
     }
 
-    if (behavior.userId._id.toString() !== req.auth.userId && req.auth.role !== "admin") {
-      return res.status(403).json({ message: "You can only view your own behaviors" });
+    // Authorization check
+    if (
+      behavior.userId._id.toString() !== req.auth.userId &&
+      req.auth.role !== "admin"
+    ) {
+      return res.status(403).json({
+        message: "You can only view your own behaviors",
+      });
     }
 
     res.status(200).json(behavior);
@@ -372,26 +516,40 @@ app.get("/api/behaviors/:id", requireAuth, async (req, res) => {
 });
 
 // ================= UPDATE BEHAVIOR =================
+
 app.put("/api/behaviors/:id", requireAuth, async (req, res) => {
   try {
     const behavior = await Behavior.findById(req.params.id);
 
-    if (!behavior) return res.status(404).json({ message: "Behavior not found" });
-    if (behavior.userId.toString() !== req.auth.userId && req.auth.role !== "admin") {
-      return res.status(403).json({ message: "You can only update your own behaviors" });
-    }
-
-    const updatedBehavior = await Behavior.findByIdAndUpdate(req.params.id, {
-      behaviorType: req.body.behaviorType,
-      description: req.body.description,
-      impactScore: req.body.impactScore,
-    }, { new: true, runValidators: true });
-
-    if (!updatedBehavior) {
+    if (!behavior) {
       return res.status(404).json({
         message: "Behavior not found",
       });
     }
+
+    // Authorization check
+    if (
+      behavior.userId.toString() !== req.auth.userId &&
+      req.auth.role !== "admin"
+    ) {
+      return res.status(403).json({
+        message: "You can only update your own behaviors",
+      });
+    }
+
+    const updatedBehavior =
+      await Behavior.findByIdAndUpdate(
+        req.params.id,
+        {
+          behaviorType: req.body.behaviorType,
+          description: req.body.description,
+          impactScore: req.body.impactScore,
+        },
+        {
+          new: true,
+          runValidators: true,
+        }
+      );
 
     res.status(200).json({
       message: "Behavior updated successfully",
@@ -406,29 +564,48 @@ app.put("/api/behaviors/:id", requireAuth, async (req, res) => {
 });
 
 // ================= DELETE BEHAVIOR =================
-app.delete("/api/behaviors/:id", requireAuth, async (req, res) => {
-  try {
-    const behavior = await Behavior.findById(req.params.id);
 
-    if (!behavior) return res.status(404).json({ message: "Behavior not found" });
-    if (behavior.userId.toString() !== req.auth.userId && req.auth.role !== "admin") {
-      return res.status(403).json({ message: "You can only delete your own behaviors" });
+app.delete(
+  "/api/behaviors/:id",
+  requireAuth,
+  async (req, res) => {
+    try {
+      const behavior = await Behavior.findById(
+        req.params.id
+      );
+
+      if (!behavior) {
+        return res.status(404).json({
+          message: "Behavior not found",
+        });
+      }
+
+      // Authorization check
+      if (
+        behavior.userId.toString() !== req.auth.userId &&
+        req.auth.role !== "admin"
+      ) {
+        return res.status(403).json({
+          message: "You can only delete your own behaviors",
+        });
+      }
+
+      await behavior.deleteOne();
+
+      res.status(200).json({
+        message: "Behavior deleted successfully",
+      });
+    } catch (error) {
+      res.status(400).json({
+        message: "Failed to delete behavior",
+        error: error.message,
+      });
     }
-
-    await behavior.deleteOne();
-    res.json({ message: "Behavior deleted successfully" });
-  } catch (error) {
-    res.status(400).json({ message: "Failed to delete behavior", error: error.message });
   }
-});
+);
 
 // ================= START SERVER =================
+
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
-});
-
-app.get("/api/auth/me", requireAuth, async (req, res) => {
-  const user = await User.findById(req.auth.userId);
-  if (!user) return res.status(404).json({ message: "User not found" });
-  res.json({ user: publicUser(user) });
 });
