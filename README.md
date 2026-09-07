@@ -13,6 +13,7 @@ Full-stack capstone application for recording behavior, measuring impact, and re
 - Impact score tracking with dashboard statistics
 - Ownership protection so users can only manage their own records
 - Responsive React dashboard with logout and expired-session handling
+- Evidence file uploads for behavior records with authenticated downloads
 
 ## Tech Stack
 
@@ -95,6 +96,8 @@ To test Google authentication, select **Continue with Google** on the sign-in sc
 - `GET /api/auth/me` - verify the current token
 - `GET /api/behaviors` - list the signed-in user's records
 - `POST /api/behaviors` - create a record
+- `POST /api/behaviors` accepts multipart field `attachment` (PDF, PNG, JPG, or TXT; max 5 MB)
+- `GET /api/behaviors/:id/attachment` - securely download a record attachment
 - `PUT /api/behaviors/:id` - update a record
 - `DELETE /api/behaviors/:id` - delete a record
 

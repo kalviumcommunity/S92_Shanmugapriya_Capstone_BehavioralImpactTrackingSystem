@@ -21,6 +21,15 @@ const behaviorSchema = new mongoose.Schema(
     impactScore: {
       type: Number,
       default: 0,
+      min: 0,
+      max: 10,
+    },
+
+    attachment: {
+      filename: String,
+      originalName: String,
+      mimeType: String,
+      size: Number,
     },
   },
   {
