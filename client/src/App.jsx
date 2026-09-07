@@ -20,7 +20,7 @@ function App() {
 
 	if (!user) return <Auth onAuthenticated={setUser} />;
 
-	return <div className="app"><Navbar user={user} onLogout={handleLogout} /><Home user={user} /><BehaviorManager /><Footer /></div>;
+	return <div className="app"><Navbar user={user} onLogout={handleLogout} /><Home user={user} /><BehaviorManager onUnauthorized={handleLogout} /><Footer /></div>;
 }
 
 export default App;

@@ -205,6 +205,10 @@ app.get("/api/users", requireAuth, async (req, res) => {
 // ================= GET USER WITH THEIR BEHAVIORS =================
 app.get("/api/users/:id/behaviors", requireAuth, async (req, res) => {
   try {
+    if (req.auth.userId !== req.params.id && req.auth.role !== "admin") {
+      return res.status(403).json({ message: "You can only view your own behaviors" });
+    }
+
     const user = await User.findById(req.params.id);
 
     if (!user) {
@@ -240,7 +244,7 @@ app.get("/api/users/:id", requireAuth, async (req, res) => {
       });
     }
 
-    res.status(200).json(user);
+    res.status(200).json(publicUser(user));
   } catch (error) {
     res.status(500).json({
       message: "Failed to fetch user",
@@ -252,9 +256,13 @@ app.get("/api/users/:id", requireAuth, async (req, res) => {
 // ================= UPDATE USER =================
 app.put("/api/users/:id", requireAuth, async (req, res) => {
   try {
+    if (req.auth.userId !== req.params.id && req.auth.role !== "admin") {
+      return res.status(403).json({ message: "You can only update your own profile" });
+    }
+
     const updatedUser = await User.findByIdAndUpdate(
       req.params.id,
-      req.body,
+      { name: req.body.name, email: req.body.email },
       {
         new: true,
         runValidators: true,
@@ -269,7 +277,7 @@ app.put("/api/users/:id", requireAuth, async (req, res) => {
 
     res.status(200).json({
       message: "User updated successfully",
-      user: updatedUser,
+      user: publicUser(updatedUser),
     });
   } catch (error) {
     res.status(400).json({
@@ -282,11 +290,12 @@ app.put("/api/users/:id", requireAuth, async (req, res) => {
 // ================= CREATE BEHAVIOR =================
 app.post("/api/behaviors", requireAuth, async (req, res) => {
   try {
-    const { userId, behaviorType, description, impactScore } = req.body;
+    const { behaviorType, description, impactScore } = req.body;
+    const userId = req.auth.userId;
 
-    if (!userId || !behaviorType || !description) {
+    if (!behaviorType || !description) {
       return res.status(400).json({
-        message: "userId, behaviorType and description are required",
+        message: "behaviorType and description are required",
       });
     }
 
@@ -320,7 +329,8 @@ app.post("/api/behaviors", requireAuth, async (req, res) => {
 // ================= GET ALL BEHAVIORS =================
 app.get("/api/behaviors", requireAuth, async (req, res) => {
   try {
-    const behaviors = await Behavior.find().populate(
+    const filter = req.auth.role === "admin" ? {} : { userId: req.auth.userId };
+    const behaviors = await Behavior.find(filter).populate(
       "userId",
       "name email role"
     );
@@ -348,6 +358,10 @@ app.get("/api/behaviors/:id", requireAuth, async (req, res) => {
       });
     }
 
+    if (behavior.userId._id.toString() !== req.auth.userId && req.auth.role !== "admin") {
+      return res.status(403).json({ message: "You can only view your own behaviors" });
+    }
+
     res.status(200).json(behavior);
   } catch (error) {
     res.status(500).json({
@@ -360,14 +374,18 @@ app.get("/api/behaviors/:id", requireAuth, async (req, res) => {
 // ================= UPDATE BEHAVIOR =================
 app.put("/api/behaviors/:id", requireAuth, async (req, res) => {
   try {
-    const updatedBehavior = await Behavior.findByIdAndUpdate(
-      req.params.id,
-      req.body,
-      {
-        new: true,
-        runValidators: true,
-      }
-    );
+    const behavior = await Behavior.findById(req.params.id);
+
+    if (!behavior) return res.status(404).json({ message: "Behavior not found" });
+    if (behavior.userId.toString() !== req.auth.userId && req.auth.role !== "admin") {
+      return res.status(403).json({ message: "You can only update your own behaviors" });
+    }
+
+    const updatedBehavior = await Behavior.findByIdAndUpdate(req.params.id, {
+      behaviorType: req.body.behaviorType,
+      description: req.body.description,
+      impactScore: req.body.impactScore,
+    }, { new: true, runValidators: true });
 
     if (!updatedBehavior) {
       return res.status(404).json({
@@ -384,6 +402,23 @@ app.put("/api/behaviors/:id", requireAuth, async (req, res) => {
       message: "Failed to update behavior",
       error: error.message,
     });
+  }
+});
+
+// ================= DELETE BEHAVIOR =================
+app.delete("/api/behaviors/:id", requireAuth, async (req, res) => {
+  try {
+    const behavior = await Behavior.findById(req.params.id);
+
+    if (!behavior) return res.status(404).json({ message: "Behavior not found" });
+    if (behavior.userId.toString() !== req.auth.userId && req.auth.role !== "admin") {
+      return res.status(403).json({ message: "You can only delete your own behaviors" });
+    }
+
+    await behavior.deleteOne();
+    res.json({ message: "Behavior deleted successfully" });
+  } catch (error) {
+    res.status(400).json({ message: "Failed to delete behavior", error: error.message });
   }
 });
 
