@@ -1,0 +1,6 @@
+{
+  "version": "1",
+  "name": "Behavioral Impact Tracking System API",
+  "type": "collection",
+  "ignore": ["node_modules", ".env"]
+}

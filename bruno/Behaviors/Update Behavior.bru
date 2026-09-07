@@ -1,0 +1,27 @@
+meta {
+  name: Update Behavior
+  type: http
+  seq: 6
+}
+
+put {
+  url: {{baseUrl}}/api/behaviors/{{behaviorId}}
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "behaviorType": "Updated activity",
+    "description": "Updated through Bruno",
+    "impactScore": 10
+  }
+}

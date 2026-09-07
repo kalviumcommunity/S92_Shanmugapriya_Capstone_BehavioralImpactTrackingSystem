@@ -1,0 +1,15 @@
+meta {
+  name: List Behaviors
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/api/behaviors
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
