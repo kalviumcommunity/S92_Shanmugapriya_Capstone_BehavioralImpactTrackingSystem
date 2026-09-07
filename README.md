@@ -5,6 +5,7 @@ Full-stack capstone application for recording behavior, measuring impact, and re
 ## Features
 
 - Username and password registration and login
+- Google third-party sign-in with verified Google ID tokens
 - Password hashing with bcrypt
 - JWT-based authentication for protected API routes
 - MongoDB persistence for users and behavior records
@@ -47,7 +48,16 @@ Create a `.env` file in the project root:
 PORT=5000
 MONGO_URI=your_mongodb_connection_string
 JWT_SECRET=replace_with_a_long_random_secret
+GOOGLE_CLIENT_ID=your-google-web-client-id.apps.googleusercontent.com
 ```
+
+Create `client/.env` from `client/.env.example` and add the same Google web client ID:
+
+```env
+VITE_GOOGLE_CLIENT_ID=your-google-web-client-id.apps.googleusercontent.com
+```
+
+In Google Cloud Console, create an OAuth 2.0 **Web application** client. Add `http://localhost:5173` to the authorized JavaScript origins, then use the client ID in both environment files. The frontend uses Google Identity Services and the backend verifies the returned ID token before issuing the app JWT.
 
 ## Run Locally
 
@@ -75,10 +85,13 @@ Open `http://localhost:5173` in a browser. The Vite development server proxies `
 4. Edit or delete records from the dashboard.
 5. Use **Log out** to clear the local session.
 
+To test Google authentication, select **Continue with Google** on the sign-in screen and choose a Google account. A Google-linked user is created automatically on first sign-in.
+
 ## API Endpoints
 
 - `POST /api/auth/register` - create an account
 - `POST /api/auth/login` - receive a JWT token
+- `POST /api/auth/google` - verify a Google ID token and receive a JWT token
 - `GET /api/auth/me` - verify the current token
 - `GET /api/behaviors` - list the signed-in user's records
 - `POST /api/behaviors` - create a record

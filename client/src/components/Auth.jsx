@@ -1,10 +1,56 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 function Auth({ onAuthenticated }) {
   const [isRegistering, setIsRegistering] = useState(false);
   const [form, setForm] = useState({ username: "", password: "" });
   const [message, setMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const googleButtonRef = useRef(null);
+  const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+
+  useEffect(() => {
+    if (!googleClientId || !googleButtonRef.current) return undefined;
+
+    const completeGoogleLogin = async (credential) => {
+      setMessage("");
+      setIsSubmitting(true);
+      try {
+        const response = await fetch("/api/auth/google", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ credential }),
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || "Google authentication failed");
+        localStorage.setItem("authToken", data.token);
+        localStorage.setItem("authUser", JSON.stringify(data.user));
+        onAuthenticated(data.user);
+      } catch (error) {
+        setMessage(error.message);
+      } finally {
+        setIsSubmitting(false);
+      }
+    };
+
+    const renderGoogleButton = () => {
+      if (!window.google?.accounts?.id || !googleButtonRef.current) return;
+      window.google.accounts.id.initialize({
+        client_id: googleClientId,
+        callback: (response) => completeGoogleLogin(response.credential),
+      });
+      window.google.accounts.id.renderButton(googleButtonRef.current, {
+        theme: "outline",
+        size: "large",
+        width: 340,
+        text: "continue_with",
+        shape: "rectangular",
+      });
+    };
+
+    if (window.google?.accounts?.id) renderGoogleButton();
+    else window.addEventListener("google-loaded", renderGoogleButton);
+    return () => window.removeEventListener("google-loaded", renderGoogleButton);
+  }, [googleClientId, onAuthenticated]);
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -56,6 +102,12 @@ function Auth({ onAuthenticated }) {
             {isSubmitting ? "Please wait..." : isRegistering ? "Create account" : "Sign in"}
           </button>
         </form>
+          {!isRegistering && (
+            <>
+              <div className="auth-divider"><span>or continue with</span></div>
+              {googleClientId ? <div ref={googleButtonRef} className="google-button" /> : <p className="google-config">Google Sign-In requires `VITE_GOOGLE_CLIENT_ID` in `client/.env`.</p>}
+            </>
+          )}
         <button className="auth-switch" type="button" onClick={() => { setIsRegistering(!isRegistering); setMessage(""); }}>
           {isRegistering ? "Already have an account? Sign in" : "Need an account? Create one"}
         </button>
