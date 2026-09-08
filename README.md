@@ -106,7 +106,7 @@ Replace the API URL with the deployed Render backend URL without a trailing slas
 
 Add the deployed frontend URL to the authorized JavaScript origins for the Google OAuth web client. Record the final public URL here for the deployment submission:
 
-`https://your-site-name.netlify.app`
+`https://teal-brioche-89a8df.netlify.app`
 
 ## Authentication Flow
 
