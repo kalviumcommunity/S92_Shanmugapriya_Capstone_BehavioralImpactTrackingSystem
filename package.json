@@ -3,7 +3,8 @@
     "dev": "npm --prefix client run dev",
     "client": "npm --prefix client run dev",
     "server": "node server.js",
-    "start": "node server.js"
+    "start": "node server.js",
+    "test": "jest --runInBand"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",
@@ -14,5 +15,8 @@
     "jsonwebtoken": "^9.0.3",
     "mongoose": "^9.9.2",
     "multer": "^2.3.0"
+  },
+  "devDependencies": {
+    "jest": "^30.5.1"
   }
 }

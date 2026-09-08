@@ -8,6 +8,13 @@ const jwt = require("jsonwebtoken");
 const cors = require("cors");
 const multer = require("multer");
 const { OAuth2Client } = require("google-auth-library");
+const {
+  canAccessResource,
+  createToken,
+  getBearerToken,
+  publicUser,
+  verifyToken,
+} = require("./utils/auth");
 
 require("dotenv").config();
 
@@ -62,47 +69,19 @@ if (!JWT_SECRET) {
 
 // ================= HELPER FUNCTIONS =================
 
-// Remove password before sending user details
-const publicUser = (user) => ({
-  id: user._id,
-  username: user.username,
-  name: user.name,
-  email: user.email,
-  role: user.role,
-});
-
-// Create JWT token
-const createToken = (user) => {
-  return jwt.sign(
-    {
-      userId: user._id.toString(),
-      username: user.username,
-      role: user.role,
-    },
-    JWT_SECRET,
-    {
-      expiresIn: "1h",
-    }
-  );
-};
-
 // ================= JWT AUTHORIZATION MIDDLEWARE =================
 
 const requireAuth = (req, res, next) => {
-  const authorization = req.headers.authorization || "";
+  const token = getBearerToken(req.headers.authorization);
 
-  // Check Bearer token
-  if (!authorization.startsWith("Bearer ")) {
+  if (!token) {
     return res.status(401).json({
       message: "Authentication required. Please provide a Bearer token.",
     });
   }
 
-  const token = authorization.slice(7);
-
   try {
-    // Verify JWT token
-    const decoded = jwt.verify(token, JWT_SECRET);
+    const decoded = verifyToken(token, JWT_SECRET);
 
     // Store authenticated user information
     req.auth = decoded;
@@ -239,7 +218,7 @@ app.post("/api/auth/login", async (req, res) => {
     }
 
     // Create JWT token
-    const token = createToken(user);
+    const token = createToken(user, JWT_SECRET);
 
     res.status(200).json({
       message: "Login successful",
@@ -731,7 +710,7 @@ app.post("/api/auth/google", async (req, res) => {
 
     res.status(200).json({
       message: "Google login successful",
-      token: createToken(user),
+      token: createToken(user, JWT_SECRET),
       user: publicUser(user),
     });
   } catch (error) {
