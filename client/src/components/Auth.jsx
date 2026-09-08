@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { apiUrl } from "../api";
 
 function Auth({ onAuthenticated }) {
   const [isRegistering, setIsRegistering] = useState(false);
@@ -15,7 +16,7 @@ function Auth({ onAuthenticated }) {
       setMessage("");
       setIsSubmitting(true);
       try {
-        const response = await fetch("/api/auth/google", {
+        const response = await fetch(apiUrl("/api/auth/google"), {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ credential }),
@@ -58,7 +59,7 @@ function Auth({ onAuthenticated }) {
     setIsSubmitting(true);
 
     try {
-      const response = await fetch(`/api/auth/${isRegistering ? "register" : "login"}`, {
+      const response = await fetch(apiUrl(`/api/auth/${isRegistering ? "register" : "login"}`), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form),

@@ -91,6 +91,23 @@ Add these values when Render asks for Blueprint secrets:
 
 After deployment, verify `https://your-service.onrender.com/` returns `Behavioral Impact Tracking System API is running`. Add the Render URL to Google OAuth authorized origins if Google sign-in is used. Render's free service filesystem is ephemeral, so uploaded evidence files should eventually move to object storage such as Cloudinary or S3 for durable production storage.
 
+## Deploy Frontend on Netlify
+
+1. Push this repository to GitHub and choose **Add new project > Import an existing project** in Netlify.
+2. Select the repository. Netlify reads [`netlify.toml`](netlify.toml), which sets the client directory as the build base, runs `npm run build`, and publishes `dist`.
+3. In Netlify project settings, add these environment variables:
+
+```env
+VITE_API_URL=https://your-service.onrender.com
+VITE_GOOGLE_CLIENT_ID=your-google-web-client-id.apps.googleusercontent.com
+```
+
+Replace the API URL with the deployed Render backend URL without a trailing slash. Trigger a deploy and verify the Netlify URL loads the login screen. The SPA redirect in `netlify.toml` keeps direct routes working after refresh.
+
+Add the deployed frontend URL to the authorized JavaScript origins for the Google OAuth web client. Record the final public URL here for the deployment submission:
+
+`https://your-site-name.netlify.app`
+
 ## Authentication Flow
 
 1. Select **Need an account? Create one** and register with a username and password.

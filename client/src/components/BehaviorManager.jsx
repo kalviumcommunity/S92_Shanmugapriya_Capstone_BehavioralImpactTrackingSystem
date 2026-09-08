@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
+import { apiUrl } from "../api";
 
 const emptyForm = { behaviorType: "", description: "", impactScore: 0 };
 
 const apiRequest = async (url, options = {}, onUnauthorized) => {
   const isFormData = options.body instanceof FormData;
-  const response = await fetch(url, {
+  const response = await fetch(apiUrl(url), {
     ...options,
     headers: {
       ...(isFormData ? {} : { "Content-Type": "application/json" }),
@@ -87,7 +88,7 @@ function BehaviorManager({ onUnauthorized }) {
 
   const downloadAttachment = async (behavior) => {
     try {
-      const response = await fetch(`/api/behaviors/${behavior._id}/attachment`, {
+      const response = await fetch(apiUrl(`/api/behaviors/${behavior._id}/attachment`), {
         headers: { Authorization: `Bearer ${localStorage.getItem("authToken")}` },
       });
       if (response.status === 401) return onUnauthorized();
