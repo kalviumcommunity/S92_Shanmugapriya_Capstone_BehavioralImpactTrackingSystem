@@ -79,6 +79,22 @@ npm run dev
 
 Open `http://localhost:5173` in a browser. The Vite development server proxies `/api` requests to the Express server on port `5000`.
 
+## Run with Docker
+
+Build the production image from the project root:
+
+```powershell
+docker build -t behavioral-impact-tracker .
+```
+
+Run it with the required environment variables and a named volume for uploaded evidence:
+
+```powershell
+docker run --name behavioral-impact-tracker --env-file .env -p 5000:5000 -v behavioral-impact-uploads:/app/uploads behavioral-impact-tracker
+```
+
+Open `http://localhost:5000`. The container serves the built React client and the Express API from the same port. Keep `MONGO_URI`, `JWT_SECRET`, and any enabled Google authentication settings in the environment rather than adding them to the image.
+
 ## Deploy Backend on Render
 
 The repository includes `render.yaml` for a Node web service. In Render, choose **New > Blueprint**, connect this GitHub repository, and select the `main` branch. Render will use `npm install` to build, `npm start` to run, and `/` as the health check.
