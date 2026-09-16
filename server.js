@@ -26,6 +26,7 @@ const User = require("./models/User");
 
 const app = express();
 const uploadsDirectory = path.join(__dirname, "uploads");
+const clientBuildDirectory = path.join(__dirname, "client", "dist");
 fs.mkdirSync(uploadsDirectory, { recursive: true });
 
 const allowedFileTypes = new Set([
@@ -134,6 +135,10 @@ app.get("/api", (req, res) => {
     ],
   });
 });
+
+if (process.env.NODE_ENV === "production") {
+  app.use(express.static(clientBuildDirectory));
+}
 
 // =====================================================
 //                    AUTH ROUTES
@@ -660,6 +665,12 @@ app.use((error, _req, res, _next) => {
   }
   res.status(500).json({ message: "Unexpected server error" });
 });
+
+if (process.env.NODE_ENV === "production") {
+  app.get(/^(?!\/api(?:\/|$)).*/, (_req, res) => {
+    res.sendFile(path.join(clientBuildDirectory, "index.html"));
+  });
+}
 
 // ================= START SERVER =================
 
