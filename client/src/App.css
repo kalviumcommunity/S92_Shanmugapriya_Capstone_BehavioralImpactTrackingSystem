@@ -378,6 +378,50 @@
   gap: 18px;
 }
 
+.ai-assist {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 14px;
+  border: 1px solid #b9d8cf;
+  border-radius: 5px;
+  background: #edf7f3;
+}
+
+.ai-assist strong,
+.ai-assist span {
+  display: block;
+}
+
+.ai-assist strong {
+  color: #1e5d55;
+  font-size: 14px;
+}
+
+.ai-assist span {
+  margin-top: 4px;
+  color: #52736b;
+  font-size: 12px;
+  font-weight: 400;
+}
+
+.button-ai {
+  flex: 0 0 auto;
+  padding: 9px 12px;
+  border: 1px solid #27766b;
+  border-radius: 4px;
+  color: #27766b;
+  background: #fffdf8;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.button-ai:disabled {
+  opacity: 0.65;
+  cursor: wait;
+}
+
 .behavior-form label {
   display: grid;
   gap: 8px;

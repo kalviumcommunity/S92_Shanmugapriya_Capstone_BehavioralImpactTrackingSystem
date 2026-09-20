@@ -25,6 +25,7 @@ function BehaviorManager({ onUnauthorized }) {
   const [editingId, setEditingId] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isSuggesting, setIsSuggesting] = useState(false);
   const [message, setMessage] = useState("");
   const [attachment, setAttachment] = useState(null);
 
@@ -34,6 +35,23 @@ function BehaviorManager({ onUnauthorized }) {
       .catch((error) => setMessage(error.message))
         .finally(() => setIsLoading(false));
       }, [onUnauthorized]);
+
+  const generateSuggestion = async () => {
+    setMessage("");
+    setIsSuggesting(true);
+    try {
+      const data = await apiRequest("/api/ai/suggest", {
+        method: "POST",
+        body: JSON.stringify({ behaviorType: form.behaviorType, description: form.description }),
+      }, onUnauthorized);
+      setForm((current) => ({ ...current, ...data.suggestion }));
+      setMessage(data.suggestion.source === "gemini" ? "AI suggestion applied." : "Smart offline suggestion applied.");
+    } catch (error) {
+      setMessage(error.message);
+    } finally {
+      setIsSuggesting(false);
+    }
+  };
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -117,6 +135,7 @@ function BehaviorManager({ onUnauthorized }) {
       <section className="behavior-layout">
         <form className="behavior-form" onSubmit={handleSubmit}>
           <div className="section-label">{editingId ? "Edit record" : "Add a record"}</div>
+          <div className="ai-assist"><div><strong>AI writing assistant</strong><span>Turn a rough note into a clear behavior record.</span></div><button type="button" className="button-ai" onClick={generateSuggestion} disabled={isSuggesting}>{isSuggesting ? "Thinking..." : "Generate with AI"}</button></div>
           <label>Behavior type<input required value={form.behaviorType} onChange={(event) => setForm({ ...form, behaviorType: event.target.value })} placeholder="e.g. Daily exercise" /></label>
           <label>Description<textarea required value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} placeholder="What happened?" rows="4" /></label>
           <label>Impact score <span className="score-value">{form.impactScore}/10</span><input type="range" min="0" max="10" value={form.impactScore} onChange={(event) => setForm({ ...form, impactScore: Number(event.target.value) })} /></label>
