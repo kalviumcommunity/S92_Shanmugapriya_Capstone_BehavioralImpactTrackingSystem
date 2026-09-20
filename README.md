@@ -1,179 +1,178 @@
 # Behavioral Impact Tracking System
 
-Full-stack capstone application for recording behavior, measuring impact, and reviewing personal activity over time.
+A full-stack application for recording meaningful behaviors, measuring their impact, and reviewing personal activity over time.
 
-## Features
+## Problem Statement
 
-- Username and password registration and login
-- Google third-party sign-in with verified Google ID tokens
-- Password hashing with bcrypt
-- JWT-based authentication for protected API routes
-- MongoDB persistence for users and behavior records
+People often perform useful daily actions without recording them consistently, making it difficult to identify progress, patterns, and the impact of their habits. The project provides one authenticated workspace where users can record behaviors, add evidence, and review impact scores.
+
+## Proposed Solution
+
+The application combines a React dashboard with an Express API and MongoDB persistence. Users can register or sign in with Google, create behavior records, attach evidence, edit or delete their own records, and use an AI-assisted writing tool to turn a rough note into a structured behavior entry.
+
+## Technology Stack
+
+- Frontend: React 19, Vite, CSS
+- Backend: Node.js, Express 5
+- Database: MongoDB with Mongoose
+- Authentication: JWT, bcryptjs, Google Identity Services
+- File handling: Multer with authenticated downloads
+- AI integration: Gemini API with a deterministic offline fallback
+- Testing and quality: Jest and Oxlint
+- Deployment configuration: Netlify, Render, and Docker
+
+## Architecture Overview
+
+The React client communicates with the Express server through JSON and multipart HTTP requests. Protected routes require a JWT bearer token. The server validates ownership before returning or mutating user records, stores behavior data in MongoDB, and stores uploaded evidence in the `uploads/` directory. In production, the server can serve the built Vite client, while the repository also includes separate Netlify and Render configurations.
+
+The AI flow is deliberately server-side: the client sends a draft to `POST /api/ai/suggest`, the authenticated API uses Gemini when `GEMINI_API_KEY` is configured, and otherwise returns a local keyword-aware suggestion. API keys are never exposed to the browser.
+
+## Key Features
+
+- Username/password registration and login
+- Google sign-in with verified ID tokens
+- JWT-protected API routes and ownership checks
 - Create, view, edit, and delete behavior records
-- Impact score tracking with dashboard statistics
-- Ownership protection so users can only manage their own records
-- Responsive React dashboard with logout and expired-session handling
-- Evidence file uploads for behavior records with authenticated downloads
+- Impact score tracking from 0 to 10 with dashboard statistics
+- Evidence uploads for PDF, PNG, JPG, and TXT files up to 5 MB
+- Authenticated evidence downloads
 - AI-assisted behavior autocomplete with Gemini and an offline fallback
-- Bruno API collection covering all public and protected endpoints
+- Responsive dashboard with logout and expired-session handling
+- Bruno API collection for public and protected endpoints
 
-## Tech Stack
+## Live Deployment
 
-- React and Vite
-- Node.js and Express
-- MongoDB and Mongoose
-- JSON Web Tokens and bcryptjs
+- Frontend: https://teal-brioche-89a8df.netlify.app
+- Backend configured in the frontend: https://behavioral-impact-api.onrender.com
 
-## Requirements
+The Netlify frontend is publicly reachable. The Render URL is the configured backend deployment target and should be checked in Render before final submission; the API root is expected to return `Behavioral Impact Tracking System API is running`.
 
-- Node.js 18 or newer
-- MongoDB connection string
+## Installation
 
-## Setup
-
-Install backend dependencies from the project root:
+Requirements: Node.js 18 or newer, npm, and a MongoDB connection string.
 
 ```powershell
+git clone https://github.com/kalviumcommunity/S92_Shanmugapriya_Capstone_BehavioralImpactTrackingSystem.git
+cd S92_Shanmugapriya_Capstone_BehavioralImpactTrackingSystem
 npm install
-```
-
-Install frontend dependencies:
-
-```powershell
 cd client
 npm install
 cd ..
 ```
 
-Create a `.env` file in the project root:
+## Environment Setup
+
+Copy `.env.example` to `.env` in the repository root and set the required values:
 
 ```env
 PORT=5000
 MONGO_URI=your_mongodb_connection_string
 JWT_SECRET=replace_with_a_long_random_secret
 GOOGLE_CLIENT_ID=your-google-web-client-id.apps.googleusercontent.com
-# Optional: enables Gemini-powered behavior suggestions in the dashboard
 GEMINI_API_KEY=your-gemini-api-key
-# Optional model override; defaults to gemini-2.0-flash
 GEMINI_MODEL=gemini-2.0-flash
 ```
 
-Create `client/.env` from `client/.env.example` and add the same Google web client ID:
+Copy `client/.env.example` to `client/.env`:
 
 ```env
 VITE_GOOGLE_CLIENT_ID=your-google-web-client-id.apps.googleusercontent.com
+VITE_API_URL=
 ```
 
-In Google Cloud Console, create an OAuth 2.0 **Web application** client. Add `http://localhost:5173` to the authorized JavaScript origins, then use the client ID in both environment files. The frontend uses Google Identity Services and the backend verifies the returned ID token before issuing the app JWT.
+`GEMINI_API_KEY` is optional. Without it, the AI assistant uses the offline fallback. Never commit `.env` or real credentials.
 
-## Run Locally
+## Running Locally
 
-Open two terminals in the project root.
-
-Terminal 1, start the API:
+Start the API in one terminal:
 
 ```powershell
 npm run server
 ```
 
-Terminal 2, start the React client:
+Start the Vite client in another terminal:
 
 ```powershell
 npm run dev
 ```
 
-Open `http://localhost:5173` in a browser. The Vite development server proxies `/api` requests to the Express server on port `5000`.
+Open http://localhost:5173. Vite proxies `/api` requests to the server on port 5000.
 
-## Run with Docker
-
-Build the production image from the project root:
+## Docker
 
 ```powershell
 docker build -t behavioral-impact-tracker .
-```
-
-Run it with the required environment variables and a named volume for uploaded evidence:
-
-```powershell
 docker run --name behavioral-impact-tracker --env-file .env -p 5000:5000 -v behavioral-impact-uploads:/app/uploads behavioral-impact-tracker
 ```
 
-Open `http://localhost:5000`. The container serves the built React client and the Express API from the same port. Keep `MONGO_URI`, `JWT_SECRET`, and any enabled Google authentication settings in the environment rather than adding them to the image.
+Open http://localhost:5000 after the container starts.
 
-## Deploy Backend on Render
+## API Reference
 
-The repository includes `render.yaml` for a Node web service. In Render, choose **New > Blueprint**, connect this GitHub repository, and select the `main` branch. Render will use `npm install` to build, `npm start` to run, and `/` as the health check.
-
-Add these values when Render asks for Blueprint secrets:
-
-- `MONGO_URI`: the MongoDB Atlas connection string
-- `JWT_SECRET`: a long random secret, or keep Render's generated value
-- `GOOGLE_CLIENT_ID`: the Google OAuth web client ID if Google login is enabled
-
-After deployment, verify `https://your-service.onrender.com/` returns `Behavioral Impact Tracking System API is running`. Add the Render URL to Google OAuth authorized origins if Google sign-in is used. Render's free service filesystem is ephemeral, so uploaded evidence files should eventually move to object storage such as Cloudinary or S3 for durable production storage.
-
-## Deploy Frontend on Netlify
-
-1. Push this repository to GitHub and choose **Add new project > Import an existing project** in Netlify.
-2. Select the repository. Netlify reads [`netlify.toml`](netlify.toml), which sets the client directory as the build base, runs `npm run build`, and publishes `dist`.
-3. In Netlify project settings, add these environment variables:
-
-```env
-VITE_API_URL=https://your-service.onrender.com
-VITE_GOOGLE_CLIENT_ID=your-google-web-client-id.apps.googleusercontent.com
-```
-
-Replace the API URL with the deployed Render backend URL without a trailing slash. Trigger a deploy and verify the Netlify URL loads the login screen. The SPA redirect in `netlify.toml` keeps direct routes working after refresh.
-
-Add the deployed frontend URL to the authorized JavaScript origins for the Google OAuth web client. Record the final public URL here for the deployment submission:
-
-`https://teal-brioche-89a8df.netlify.app`
-
-## Authentication Flow
-
-1. Select **Need an account? Create one** and register with a username and password.
-2. Sign in with the same credentials.
-3. Add behavior records and assign an impact score from 0 to 10.
-4. Edit or delete records from the dashboard.
-5. Use **Log out** to clear the local session.
-
-To test Google authentication, select **Continue with Google** on the sign-in screen and choose a Google account. A Google-linked user is created automatically on first sign-in.
-
-## API Endpoints
-
+- `GET /` - backend health response
+- `GET /api` - API information and endpoint list
 - `POST /api/auth/register` - create an account
-- `POST /api/auth/login` - receive a JWT token
-- `POST /api/auth/google` - verify a Google ID token and receive a JWT token
-- `GET /api/auth/me` - verify the current token
-- `GET /api/behaviors` - list the signed-in user's records
-- `POST /api/behaviors` - create a record
-- `POST /api/behaviors` accepts multipart field `attachment` (PDF, PNG, JPG, or TXT; max 5 MB)
-- `GET /api/behaviors/:id/attachment` - securely download a record attachment
+- `POST /api/auth/login` - receive a JWT
+- `POST /api/auth/google` - verify a Google ID token
+- `GET /api/auth/me` - get the authenticated user
+- `POST /api/ai/suggest` - generate a behavior suggestion
+- `GET /api/behaviors` - list accessible behavior records
+- `POST /api/behaviors` - create a record, optionally with `attachment`
+- `GET /api/behaviors/:id` - get one record
 - `PUT /api/behaviors/:id` - update a record
 - `DELETE /api/behaviors/:id` - delete a record
-- `POST /api/ai/suggest` - generate a behavior type, description, and impact score from a draft
+- `GET /api/behaviors/:id/attachment` - download authenticated evidence
+
+## Folder Structure
+
+```text
+server.js                 Express API, authentication, and deployment serving
+models/                   Mongoose schemas for users, behaviors, and logs
+utils/                    Authentication helpers
+client/src/               React application and dashboard components
+tests/                    Jest tests
+bruno/                    API collection and local environment
+render.yaml               Render backend configuration
+netlify.toml              Netlify frontend configuration
+Dockerfile                Full-stack production image
+```
 
 ## Validation
 
 ```powershell
-cd client
-npm run build
-npm run lint
-cd ..
+npm test
+npm --prefix client run build
+npm --prefix client run lint
 node --check server.js
 ```
 
-## Bruno API Collection
+The final AI integration was validated with 6 passing Jest tests, a successful Vite production build, clean Oxlint output, and a passing backend syntax check.
 
-The `bruno/` folder is a runnable Bruno collection. Import that folder into Bruno and select the `local` environment. Run `Auth / Login` first so the collection stores the JWT token automatically, then run the behavior and attachment requests. The collection includes health, API info, password auth, Google auth, user management, behavior CRUD, and file upload/download requests.
+## Technical Decisions and Challenges
 
-## Pull Request
+- JWT middleware centralizes authentication and keeps protected routes consistent.
+- Ownership checks prevent normal users from reading or changing another user's records.
+- Multer handles evidence uploads while metadata remains associated with the behavior document.
+- The AI endpoint keeps the provider key on the server and includes an offline fallback for local demos and provider outages.
+- Separate Netlify and Render configuration supports independent frontend and backend deployment, while Docker supports a single production image.
 
-Authentication implementation branch:
+The main challenges were coordinating authentication across the React and Express layers, protecting uploaded evidence, and adding useful AI behavior without making the application depend on a paid provider. These were addressed with shared API request handling, route-level authorization, and the fallback suggestion path.
 
-`feature/username-password-authentication`
+## Future Improvements
 
-## Author
+- Move uploaded evidence to durable object storage for production deployments.
+- Add richer behavior analytics and time-series visualizations.
+- Add broader API and component test coverage.
+- Add rate limiting and usage monitoring for the AI endpoint.
 
-A. Shanmuga Priya
-B.Tech - Artificial Intelligence and Machine Learning, AMET University
+## Supporting Documentation
+
+The `bruno/` directory contains runnable requests for health, authentication, users, behaviors, and attachments. Run the login request first so Bruno stores the JWT token for protected requests.
+
+## Final Submission
+
+The final documentation branch is `feature/final-project-submission`, targeting `main`. The walkthrough video must be recorded separately and shared with a public Google Drive link.
+
+## Contributor
+
+A. Shanmuga Priya, B.Tech in Artificial Intelligence and Machine Learning, AMET University.
