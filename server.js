@@ -61,6 +61,8 @@ const PORT = process.env.PORT || 5000;
 const JWT_SECRET = process.env.JWT_SECRET;
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
 const googleClient = GOOGLE_CLIENT_ID ? new OAuth2Client(GOOGLE_CLIENT_ID) : null;
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-2.0-flash";
 
 // ================= JWT CONFIG CHECK =================
 if (!JWT_SECRET) {
@@ -93,6 +95,66 @@ const requireAuth = (req, res, next) => {
       message: "Invalid or expired token",
     });
   }
+};
+
+const offlineSuggestion = ({ behaviorType, description }) => {
+  const context = `${behaviorType} ${description}`.toLowerCase();
+  if (context.includes("exercise") || context.includes("walk") || context.includes("workout")) {
+    return {
+      behaviorType: "Consistent physical activity",
+      description: "Completed a planned movement session and tracked how it supported my energy and wellbeing.",
+      impactScore: 8,
+    };
+  }
+  if (context.includes("study") || context.includes("learn") || context.includes("read")) {
+    return {
+      behaviorType: "Focused learning session",
+      description: "Completed a focused learning session and captured one useful insight to apply next.",
+      impactScore: 8,
+    };
+  }
+  if (context.includes("sleep") || context.includes("rest")) {
+    return {
+      behaviorType: "Healthy rest routine",
+      description: "Followed a consistent rest routine that supported recovery and focus for the next day.",
+      impactScore: 7,
+    };
+  }
+  return {
+    behaviorType: behaviorType?.trim() || "Intentional daily habit",
+    description: description?.trim() || "Completed an intentional action and reflected on the positive impact it created.",
+    impactScore: 7,
+  };
+};
+
+const generateAiSuggestion = async (input) => {
+  if (!GEMINI_API_KEY) return { ...offlineSuggestion(input), source: "offline" };
+
+  const response = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [{
+          parts: [{
+            text: `Suggest one concise behavioral impact record from this draft. Return JSON only with behaviorType (string), description (string), and impactScore (integer 0-10). Draft type: ${input.behaviorType || "none"}. Draft description: ${input.description || "none"}.`,
+          }],
+        }],
+        generationConfig: { responseMimeType: "application/json" },
+      }),
+    }
+  );
+  if (!response.ok) throw new Error("AI suggestion service is unavailable");
+  const data = await response.json();
+  const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+  const suggestion = JSON.parse(text);
+  return {
+    behaviorType: String(suggestion.behaviorType).trim(),
+    description: String(suggestion.description).trim(),
+    impactScore: Math.min(10, Math.max(0, Number(suggestion.impactScore) || 0)),
+    source: "gemini",
+  };
 };
 
 // ================= MONGODB CONNECTION =================
@@ -132,6 +194,7 @@ app.get("/api", (req, res) => {
       "GET /api/behaviors/:id/attachment",
       "PUT /api/behaviors/:id",
       "DELETE /api/behaviors/:id",
+      "POST /api/ai/suggest",
     ],
   });
 });
@@ -143,6 +206,18 @@ if (process.env.NODE_ENV === "production") {
 // =====================================================
 //                    AUTH ROUTES
 // =====================================================
+
+app.post("/api/ai/suggest", requireAuth, async (req, res) => {
+  try {
+    const suggestion = await generateAiSuggestion({
+      behaviorType: String(req.body.behaviorType || ""),
+      description: String(req.body.description || ""),
+    });
+    res.status(200).json({ suggestion });
+  } catch (error) {
+    res.status(502).json({ message: error.message || "Unable to generate an AI suggestion" });
+  }
+});
 
 // ================= REGISTER =================
 

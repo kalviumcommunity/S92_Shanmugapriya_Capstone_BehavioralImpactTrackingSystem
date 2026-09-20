@@ -14,6 +14,7 @@ Full-stack capstone application for recording behavior, measuring impact, and re
 - Ownership protection so users can only manage their own records
 - Responsive React dashboard with logout and expired-session handling
 - Evidence file uploads for behavior records with authenticated downloads
+- AI-assisted behavior autocomplete with Gemini and an offline fallback
 - Bruno API collection covering all public and protected endpoints
 
 ## Tech Stack
@@ -51,6 +52,10 @@ PORT=5000
 MONGO_URI=your_mongodb_connection_string
 JWT_SECRET=replace_with_a_long_random_secret
 GOOGLE_CLIENT_ID=your-google-web-client-id.apps.googleusercontent.com
+# Optional: enables Gemini-powered behavior suggestions in the dashboard
+GEMINI_API_KEY=your-gemini-api-key
+# Optional model override; defaults to gemini-2.0-flash
+GEMINI_MODEL=gemini-2.0-flash
 ```
 
 Create `client/.env` from `client/.env.example` and add the same Google web client ID:
@@ -146,6 +151,7 @@ To test Google authentication, select **Continue with Google** on the sign-in sc
 - `GET /api/behaviors/:id/attachment` - securely download a record attachment
 - `PUT /api/behaviors/:id` - update a record
 - `DELETE /api/behaviors/:id` - delete a record
+- `POST /api/ai/suggest` - generate a behavior type, description, and impact score from a draft
 
 ## Validation
 
