@@ -196,6 +196,7 @@
   width: min(100%, 430px);
   padding: 44px;
   text-align: left;
+  color-scheme: light;
   background: #fffdf8;
   border: 1px solid #d7dfda;
   border-radius: 8px;
@@ -205,6 +206,7 @@
 .auth-card h1 {
   margin: 12px 0;
   font-size: 42px;
+  color: #1f3a35;
 }
 
 .eyebrow {
@@ -236,6 +238,8 @@
   padding: 13px 14px;
   border: 1px solid #b8c9c1;
   border-radius: 4px;
+  color: #273b35;
+  background: #ffffff;
   font: inherit;
 }
 
