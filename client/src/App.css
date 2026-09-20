@@ -187,24 +187,41 @@
   min-height: 100svh;
   display: grid;
   place-items: center;
-  padding: 24px;
+  padding: 40px 24px;
   box-sizing: border-box;
-  background: linear-gradient(135deg, #f7f3eb, #e8f1ee);
+  background:
+    linear-gradient(120deg, rgba(255, 255, 255, 0.82), transparent 48%),
+    repeating-linear-gradient(135deg, rgba(39, 118, 107, 0.035) 0 1px, transparent 1px 18px),
+    #e9f0eb;
 }
 
 .auth-card {
-  width: min(100%, 430px);
-  padding: 44px;
+  position: relative;
+  width: min(100%, 470px);
+  padding: 52px;
   text-align: left;
-  background: #fffdf8;
-  border: 1px solid #d7dfda;
-  border-radius: 8px;
-  box-shadow: 0 20px 50px rgba(42, 62, 54, 0.12);
+  color-scheme: light;
+  background: rgba(255, 253, 248, 0.96);
+  border: 1px solid #d1dfd8;
+  border-radius: 14px;
+  box-shadow: 0 28px 70px rgba(42, 62, 54, 0.16);
+}
+
+.auth-card::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 5px;
+  border-radius: 14px 14px 0 0;
+  background: #26766b;
 }
 
 .auth-card h1 {
-  margin: 12px 0;
-  font-size: 42px;
+  margin: 14px 0 10px;
+  font-size: clamp(42px, 6vw, 56px);
+  line-height: 0.98;
+  letter-spacing: -1.8px;
+  color: #1f3a35;
 }
 
 .eyebrow {
@@ -216,7 +233,10 @@
 }
 
 .auth-copy {
+  max-width: 360px;
   margin-bottom: 28px;
+  color: #60746d;
+  font-size: 16px;
 }
 
 .auth-form {
@@ -236,7 +256,16 @@
   padding: 13px 14px;
   border: 1px solid #b8c9c1;
   border-radius: 4px;
+  color: #273b35;
+  background: #ffffff;
   font: inherit;
+  transition: border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.auth-form input:focus {
+  outline: none;
+  border-color: #26766b;
+  box-shadow: 0 0 0 4px rgba(38, 118, 107, 0.12);
 }
 
 .auth-form button,
@@ -248,6 +277,14 @@
   background: #27766b;
   font-weight: 700;
   cursor: pointer;
+  transition: transform 160ms ease, background 160ms ease, box-shadow 160ms ease;
+}
+
+.auth-form button:hover,
+.navbar button:hover {
+  background: #1d6259;
+  box-shadow: 0 8px 18px rgba(38, 118, 107, 0.2);
+  transform: translateY(-1px);
 }
 
 .auth-form button:disabled {
@@ -263,6 +300,10 @@
   background: transparent;
   cursor: pointer;
   font: inherit;
+}
+
+.auth-switch:hover {
+  text-decoration: underline;
 }
 
 .form-message {
@@ -549,6 +590,14 @@
 }
 
 @media (max-width: 760px) {
+  .auth-card {
+    padding: 42px 26px;
+  }
+
+  .auth-card h1 {
+    font-size: 42px;
+  }
+
   .dashboard {
     width: min(100% - 28px, 600px);
     padding-top: 32px;
